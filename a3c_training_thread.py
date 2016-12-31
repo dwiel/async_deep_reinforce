@@ -3,8 +3,8 @@ import tensorflow as tf
 import numpy as np
 import time
 
-from game_state import GameState
-from game_state import ACTION_SIZE
+from alt_game_state import GameState
+from alt_game_state import ACTION_SIZE
 from game_ac_network import GameACFFNetwork, GameACLSTMNetwork
 
 from constants import GAMMA
