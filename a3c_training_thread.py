@@ -38,10 +38,9 @@ class A3CTrainingThread(object):
         self.local_network.prepare_loss(ENTROPY_BETA)
 
         with tf.device(device):
-            var_refs = [v for v in self.local_network.get_vars()]
             self.gradients = tf.gradients(
                 self.local_network.total_loss,
-                var_refs,
+                self.local_network.get_vars(),
                 gate_gradients=False,
                 aggregation_method=None,
                 colocate_gradients_with_ops=False
