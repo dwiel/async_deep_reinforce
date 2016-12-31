@@ -1,9 +1,7 @@
 # -*- coding: utf-8 -*-
 import tensorflow as tf
 import numpy as np
-import random
 import time
-import sys
 
 from game_state import GameState
 from game_state import ACTION_SIZE
