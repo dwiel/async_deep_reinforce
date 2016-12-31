@@ -14,10 +14,10 @@ RUN apt-get install -y python-pip
 RUN pip install pip --upgrade
 RUN pip install .
 
+RUN apt-get install -y python-opencv
 WORKDIR /root
 ADD . /root/async_deep_reinforce
 WORKDIR /root/async_deep_reinforce
-RUN apt-get install -y python-opencv
 RUN pip install -r requirements.txt
 
 # personal
