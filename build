@@ -1,0 +1,3 @@
+#!/bin/bash
+
+docker build -t async_deep_reinforce .

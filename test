@@ -1,0 +1,3 @@
+#!/bin/bash
+
+docker run -it async_deep_reinforce_test

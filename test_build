@@ -1,0 +1,3 @@
+#!/bin/bash
+
+docker build -f=Dockerfile.test -t=async_deep_reinforce_test .
