@@ -1,4 +1,4 @@
 #!/bin/bash
 
-./build
-./test
+./test_build
+./test "$@"

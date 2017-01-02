@@ -54,4 +54,5 @@ RUN pip install -r /tmp/requirements.test.txt
 ADD . /root/async_deep_reinforce
 WORKDIR /root/async_deep_reinforce
 
-ENTRYPOINT py.test .
+ENTRYPOINT ["py.test"]
+CMD ["arg1"]
