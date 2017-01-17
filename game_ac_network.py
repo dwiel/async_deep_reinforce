@@ -9,7 +9,7 @@ class GameACNetwork(object):
     def __init__(
             self,
             action_size,
-            thread_index,  # -1 for global               
+            thread_index,  # -1 for global
             device="/cpu:0"
     ):
         self._action_size = action_size
@@ -121,10 +121,11 @@ class GameACFFNetwork(GameACNetwork):
 
         scope_name = "net_" + str(self._thread_index)
         with tf.device(self._device), tf.variable_scope(scope_name) as scope:
-            self.W_conv1, self.b_conv1 = self._conv_variable([8, 8, 4, 16]
-                                                             )  # stride=4
-            self.W_conv2, self.b_conv2 = self._conv_variable([4, 4, 16, 32]
-                                                             )  # stride=2
+            # stride=4
+            self.W_conv1, self.b_conv1 = self._conv_variable([8, 8, 4, 16])
+
+            # stride=2
+            self.W_conv2, self.b_conv2 = self._conv_variable([4, 4, 16, 32])
 
             self.W_fc1, self.b_fc1 = self._fc_variable([2592, 256])
 
@@ -135,7 +136,16 @@ class GameACFFNetwork(GameACNetwork):
             self.W_fc3, self.b_fc3 = self._fc_variable([256, 1])
 
             # state (input)
+            # first dimension is LSTM_T x H x W x PAST_N_STATES
             self.s = tf.placeholder("float", [None, 84, 84, 4])
+
+            center = self.s[:,84/2-1:84/2+2,84/2-1:84/2+2,-1:]
+            self.W_conv_center, self.b_conv_center = self._conv_variable([
+                3, 3, 1, 6
+            ])
+            center_out = tf.nn.relu(
+                self._conv2d(center, self.W_conv_center, 1) + self.b_conv_center
+            )
 
             h_conv1 = tf.nn.relu(
                 self._conv2d(self.s, self.W_conv1, 4) + self.b_conv1
@@ -145,6 +155,7 @@ class GameACFFNetwork(GameACNetwork):
             )
 
             h_conv2_flat = tf.reshape(h_conv2, [-1, 2592])
+            print('shape', tf.shape(h_conv2_flat))
             h_fc1 = tf.nn.relu(
                 tf.matmul(h_conv2_flat, self.W_fc1) + self.b_fc1
             )
@@ -186,10 +197,11 @@ class GameACLSTMNetwork(GameACNetwork):
 
         scope_name = "net_" + str(self._thread_index)
         with tf.device(self._device), tf.variable_scope(scope_name) as scope:
-            self.W_conv1, self.b_conv1 = self._conv_variable([8, 8, 4, 16]
-                                                             )  # stride=4
-            self.W_conv2, self.b_conv2 = self._conv_variable([4, 4, 16, 32]
-                                                             )  # stride=2
+            # stride=4
+            self.W_conv1, self.b_conv1 = self._conv_variable([8, 8, 4, 16])
+
+            # stride=2
+            self.W_conv2, self.b_conv2 = self._conv_variable([4, 4, 16, 32])
 
             self.W_fc1, self.b_fc1 = self._fc_variable([2592, 256])
 
@@ -284,7 +296,7 @@ class GameACLSTMNetwork(GameACNetwork):
         return (pi_out[0], v_out[0])
 
     def run_policy(self, sess, s_t):
-        # This run_policy() is used for displaying the result with display tool.    
+        # This run_policy() is used for displaying the result with display tool.
         pi_out, self.lstm_state_out = sess.run(
             [self.pi, self.lstm_state],
             feed_dict={
@@ -298,7 +310,7 @@ class GameACLSTMNetwork(GameACNetwork):
         return pi_out[0]
 
     def run_value(self, sess, s_t):
-        # This run_value() is used for calculating V for bootstrapping at the 
+        # This run_value() is used for calculating V for bootstrapping at the
         # end of LOCAL_T_MAX time step sequence.
         # When next sequcen starts, V will be calculated again with the same state using updated network weights,
         # so we don't update LSTM state here.
