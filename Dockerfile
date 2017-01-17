@@ -50,6 +50,6 @@ RUN pip install -r /tmp/requirements.txt
 ADD . /root/async_deep_reinforce
 WORKDIR /root/async_deep_reinforce
 
-ENTRYPOINT python a3c.py
+CMD python a3c.py
 
 
