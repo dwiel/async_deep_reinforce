@@ -12,7 +12,7 @@ from constants import LOCAL_T_MAX
 from constants import ENTROPY_BETA
 from constants import USE_LSTM
 
-LOG_INTERVAL = 100
+LOG_INTERVAL = 10000
 PERFORMANCE_LOG_INTERVAL = 1000
 
 
@@ -134,7 +134,7 @@ class A3CTrainingThread(object):
 
             if terminal:
                 terminal_end = True
-                print("score={}".format(self.episode_reward))
+                # print("score={}".format(self.episode_reward))
 
                 self._record_score(
                     sess, summary_writer, summary_op, score_input,

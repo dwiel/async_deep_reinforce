@@ -89,6 +89,8 @@ class GameACNetwork(object):
         return weight, bias
 
     def _conv_variable(self, weight_shape):
+        # create convolution variable weights
+        # could most likely get rid of this if switching to keras
         w = weight_shape[0]
         h = weight_shape[1]
         input_channels = weight_shape[2]
@@ -109,6 +111,38 @@ class GameACNetwork(object):
         )
 
 
+class ConvPerception(object):
+    def __init__(self):
+        # h, w, input_channels, output_channels
+        # stride=4
+        self.W_conv1, self.b_conv1 = self._conv_variable([8, 8, 4, 16])
+
+        # h, w, input_channels, output_channels
+        # stride=2
+        self.W_conv2, self.b_conv2 = self._conv_variable([4, 4, 16, 32])
+
+    def get_vars(self):
+        return [self.W_conv1, self.b_conv1, self.W_conv2, self.b_conv2, self.W_fc1, self.b_fc1]
+
+    def __call__(self, state):
+        h_conv1 = tf.nn.relu(
+            self._conv2d(self.s, self.W_conv1, 4) + self.b_conv1
+        )
+        h_conv2 = tf.nn.relu(
+            self._conv2d(h_conv1, self.W_conv2, 2) + self.b_conv2
+        )
+
+        self.W_fc1, self.b_fc1 = self._fc_variable([2592, 256])
+
+        # potentially move this flattening into vector space somewhere else.
+        # Could any LSTM operate meaningfully on the spatial axis?
+        h_conv2_flat = tf.reshape(h_conv2, [-1, 2592])
+        print('shape', tf.shape(h_conv2_flat))
+        h_fc1 = tf.nn.relu(tf.matmul(h_conv2_flat, self.W_fc1) + self.b_fc1)
+
+        return h_fc1
+
+
 # Actor-Critic FF Network
 class GameACFFNetwork(GameACNetwork):
     def __init__(
@@ -121,45 +155,23 @@ class GameACFFNetwork(GameACNetwork):
 
         scope_name = "net_" + str(self._thread_index)
         with tf.device(self._device), tf.variable_scope(scope_name) as scope:
-            # stride=4
-            self.W_conv1, self.b_conv1 = self._conv_variable([8, 8, 4, 16])
-
-            # stride=2
-            self.W_conv2, self.b_conv2 = self._conv_variable([4, 4, 16, 32])
-
-            self.W_fc1, self.b_fc1 = self._fc_variable([2592, 256])
-
             # weight for policy output layer
             self.W_fc2, self.b_fc2 = self._fc_variable([256, action_size])
 
             # weight for value output layer
             self.W_fc3, self.b_fc3 = self._fc_variable([256, 1])
 
-            # state (input)
+            #### placeholders: state (input)
+
             # first dimension is LSTM_T x H x W x PAST_N_STATES
             self.s = tf.placeholder("float", [None, 84, 84, 4])
 
-            center = self.s[:,84/2-1:84/2+2,84/2-1:84/2+2,-1:]
-            self.W_conv_center, self.b_conv_center = self._conv_variable([
-                3, 3, 1, 6
-            ])
-            center_out = tf.nn.relu(
-                self._conv2d(center, self.W_conv_center, 1) + self.b_conv_center
-            )
+            #### functions
 
-            h_conv1 = tf.nn.relu(
-                self._conv2d(self.s, self.W_conv1, 4) + self.b_conv1
-            )
-            h_conv2 = tf.nn.relu(
-                self._conv2d(h_conv1, self.W_conv2, 2) + self.b_conv2
-            )
+            self.perception = ConvPerception()
+            h_fc1 = self.perception(self.s)
 
-            h_conv2_flat = tf.reshape(h_conv2, [-1, 2592])
-            print('shape', tf.shape(h_conv2_flat))
-            h_fc1 = tf.nn.relu(
-                tf.matmul(h_conv2_flat, self.W_fc1) + self.b_fc1
-            )
-
+            # output layers:
             # policy (output)
             self.pi = tf.nn.softmax(tf.matmul(h_fc1, self.W_fc2) + self.b_fc2)
             # value (output)
@@ -179,8 +191,7 @@ class GameACFFNetwork(GameACNetwork):
         return v_out[0]
 
     def get_vars(self):
-        return [
-            self.W_conv1, self.b_conv1, self.W_conv2, self.b_conv2, self.W_fc1,
+        return self.perception.get_vars() + [
             self.b_fc1, self.W_fc2, self.b_fc2, self.W_fc3, self.b_fc3
         ]
 
@@ -197,16 +208,14 @@ class GameACLSTMNetwork(GameACNetwork):
 
         scope_name = "net_" + str(self._thread_index)
         with tf.device(self._device), tf.variable_scope(scope_name) as scope:
-            # stride=4
-            self.W_conv1, self.b_conv1 = self._conv_variable([8, 8, 4, 16])
-
-            # stride=2
-            self.W_conv2, self.b_conv2 = self._conv_variable([4, 4, 16, 32])
+            #### weights
 
             self.W_fc1, self.b_fc1 = self._fc_variable([2592, 256])
 
             # lstm
             self.lstm = tf.nn.rnn_cell.BasicLSTMCell(256, state_is_tuple=True)
+
+            # # output layer weights
 
             # weight for policy output layer
             self.W_fc2, self.b_fc2 = self._fc_variable([256, action_size])
@@ -217,17 +226,8 @@ class GameACLSTMNetwork(GameACNetwork):
             # state (input)
             self.s = tf.placeholder("float", [None, 84, 84, 4])
 
-            h_conv1 = tf.nn.relu(
-                self._conv2d(self.s, self.W_conv1, 4) + self.b_conv1
-            )
-            h_conv2 = tf.nn.relu(
-                self._conv2d(h_conv1, self.W_conv2, 2) + self.b_conv2
-            )
-
-            h_conv2_flat = tf.reshape(h_conv2, [-1, 2592])
-            h_fc1 = tf.nn.relu(
-                tf.matmul(h_conv2_flat, self.W_fc1) + self.b_fc1
-            )
+            self.perception = ConvPerception()
+            h_fc1 = self.perception(self.s)
             # h_fc1 shape=(5,256)
 
             h_fc1_reshaped = tf.reshape(h_fc1, [1, -1, 256])
@@ -330,8 +330,7 @@ class GameACLSTMNetwork(GameACNetwork):
         return v_out[0]
 
     def get_vars(self):
-        return [
-            self.W_conv1, self.b_conv1, self.W_conv2, self.b_conv2, self.W_fc1,
+        return self.perception.get_vars() + [
             self.b_fc1, self.W_lstm, self.b_lstm, self.W_fc2, self.b_fc2,
             self.W_fc3, self.b_fc3
         ]
