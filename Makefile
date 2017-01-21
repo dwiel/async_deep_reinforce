@@ -1,3 +1,5 @@
+.PHONY: build run
+
 build:
 	@docker build -t async_deep_reinforce .
 
