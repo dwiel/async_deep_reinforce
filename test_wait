@@ -1,0 +1,11 @@
+#!/bin/bash
+
+set -e
+
+dir="."
+
+inotifywait -m "$dir" -e close_write --format '%w%f' |
+    while IFS=' ' read -r fname
+    do
+        ./build_and_test
+    done

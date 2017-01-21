@@ -1,0 +1,98 @@
+- decrease conv size
+- decrease size of 'board'
+- more realistic sensor placement (front depth camera)
+
+goals:
+    - larger board sizes
+    - obstacles, not just square fence
+    - dig deeper
+    - coordinate with scooper
+
+realy, this algorithm would be relatively easy to hand code
+    - in real-life there is a lot of work to map from sensor stream to
+      this simple tiled map representation
+    - by writing it with a NN, it can be connected to more
+      complex inputs:
+        - 3d height position feed from high up camera
+        - build reward out of 3d heights including the robot
+        - current GPS position
+        - wheel power consumption
+
+- figure out how to measure reward function in real system to provide a
+  ciriculum:
+    - dirt weight in hand
+    - dirt height map
+    - navigating a map?
+        - not trivial to get this representation in end-to-end fashion
+    - controlling motor wheels
+        - reward task for simply controlling accerometer/velocity
+        - reward task for getting to point A in minimal time
+            - ever increasing distance from current point
+    - a seperate NN is tasked with taking soil to location X
+    - a seperate NN is tasked with grabbing soil
+        - pretrain in custom environment
+
+theory for adding spatial memory:
+    - controller reads out what was previously in last state of current
+      position
+    - controller writes out random function of hidden states to current
+      position
+    - no bprop so no time chain/memory hog
+    - interpolate recent memories in an area
+        - mean of memories in location radius within last_t time
+            - with weight decay as a function of t
+            - only look at more recent N
+        - remove memories older than last_t time
+
+end-to-end:
+    input:
+    - camera on rover
+    output:
+    - motor controls
+    reward:
+    - 3d height position as measured by GPS at end of run
+    
+    - give more frequent rewards
+        - give reward as function of difference between last time step's height
+        map and this time step's height map with new knowledge available from
+        latest GPS reading at the robot's location
+            - incentivized to check work at the end
+            - also incentivized to avoide checking work unnecessarily
+              since it doesn't help excavate
+    - rewardfor dirt picked up as a function of it's weight
+        - also acts as updating GPS readings from like from the rover
+    
+        ---
+        - reward for 1.01 ^ (time since GPS position was last visited) *
+          height_delta
+        - reward is current best GPS measurements seen so far
+        - option to take reward now, or later.  Either
+            - take this moment's reward and all in the bank
+            - or save this moment's reward in a bank and take it out
+              later at 1.01x compound per timestep
+            - prevent it from going somewhere just to check and
+              see how high it is.  Except for when it is getting
+              started, it can take frequent rewards and a stronger
+              learning signal.
+            - effect: if it is sure of the reward, it will know not to
+              bother checking.  If it is unsure, it makes more sense
+              to cache out.
+            - running over repeated/unnecessary area acts as penalty
+            - change reward odds:
+                - reward 1: 2, -1: -4
+                    - more risky, but also gives some amount of
+                      confidence in every action
+                - if you think 99% good reward, 1% bad reward
+                      probably willing to bet 2:-4 odds
+                - force to take at least 1:-1
+                - EVEN SIMPLER: just allow how much to bet on each round
+                    - that is a multiplier, must be at least 1x
+
+difficult:
+- get 3d data from ? to determine what the hieight map should be
+- build robot hand that can pickup 10lbs of soil near a specific area
+    - go to GPS position
+    - grab nearby soil
+
+tiller:
+    - goto GPS position
