@@ -160,12 +160,12 @@ class GameACFFNetwork(GameACNetwork):
             # weight for value output layer
             self.W_fc3, self.b_fc3 = _fc_variable([256, 1])
 
-            #### placeholders: state (input)
+            # ### placeholders: state (input)
 
             # first dimension is LSTM_T x H x W x PAST_N_STATES
             self.s = tf.placeholder("float", [None, 84, 84, 4])
 
-            #### functions
+            # ### functions
 
             self.perception = ConvPerception()
             h_fc1 = self.perception(self.s)
