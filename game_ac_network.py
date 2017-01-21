@@ -87,7 +87,7 @@ class GameACNetwork(object):
 
 
 class ConvPerception(object):
-    def __init__(self):
+    def __init__(self, output_vector_size):
         # h, w, input_channels, output_channels
         # stride=4
         self.W_conv1, self.b_conv1 = self._conv_variable([8, 8, 4, 16])
@@ -97,7 +97,7 @@ class ConvPerception(object):
         self.W_conv2, self.b_conv2 = self._conv_variable([4, 4, 16, 32])
 
         # fully connected layer variables
-        self.W_fc1, self.b_fc1 = _fc_variable([2592, 256])
+        self.W_fc1, self.b_fc1 = _fc_variable([2592, output_vector_size])
 
     def _conv_variable(self, weight_shape):
         # create convolution variable weights
@@ -162,7 +162,7 @@ class GameACFFNetwork(GameACNetwork):
 
             # perception model
 
-            self.perception = ConvPerception()
+            self.perception = ConvPerception(output_vector_size=256)
             h_fc1 = self.perception(self.s)
 
             # output
@@ -209,23 +209,15 @@ class GameACLSTMNetwork(GameACNetwork):
             # lstm
             self.lstm = tf.nn.rnn_cell.BasicLSTMCell(256, state_is_tuple=True)
 
-            # # output layer weights
-
-            # weight for policy output layer
-            self.W_fc2, self.b_fc2 = _fc_variable([256, action_size])
-
-            # weight for value output layer
-            self.W_fc3, self.b_fc3 = _fc_variable([256, 1])
-
             # state (input)
             self.s = tf.placeholder("float", [None, 84, 84, 4])
 
-            self.perception = ConvPerception()
+            self.perception = ConvPerception(output_vector_size=256)
+            # h_fc1.shape == (5,256)
             h_fc1 = self.perception(self.s)
-            # h_fc1 shape=(5,256)
 
+            # h_fc_reshaped.shape == (1,5,256)
             h_fc1_reshaped = tf.reshape(h_fc1, [1, -1, 256])
-            # h_fc_reshaped = (1,5,256)
 
             # place holder for LSTM unrolling time step size.
             self.step_size = tf.placeholder(tf.float32, [1])
@@ -236,7 +228,7 @@ class GameACLSTMNetwork(GameACNetwork):
                 self.initial_lstm_state0, self.initial_lstm_state1
             )
 
-            # Unrolling LSTM up to LOCAL_T_MAX time steps. (= 5time steps.)
+            # Unrolling LSTM up to LOCAL_T_MAX time steps. (= 5 time steps.)
             # When episode terminates unrolling time steps becomes less than LOCAL_TIME_STEP.
             # Unrolling step size is applied via self.step_size placeholder.
             # When forward propagating, step_size is 1.
@@ -255,11 +247,13 @@ class GameACLSTMNetwork(GameACNetwork):
             lstm_outputs = tf.reshape(lstm_outputs, [-1, 256])
 
             # policy (output)
+            self.W_fc2, self.b_fc2 = _fc_variable([256, action_size])
             self.pi = tf.nn.softmax(
                 tf.matmul(lstm_outputs, self.W_fc2) + self.b_fc2
             )
 
             # value (output)
+            self.W_fc3, self.b_fc3 = _fc_variable([256, 1])
             v_ = tf.matmul(lstm_outputs, self.W_fc3) + self.b_fc3
             self.v = tf.reshape(v_, [-1])
 
@@ -325,6 +319,6 @@ class GameACLSTMNetwork(GameACNetwork):
 
     def get_vars(self):
         return self.perception.get_vars() + [
-            self.W_lstm, self.b_lstm, self.W_fc2, self.b_fc2,
-            self.W_fc3, self.b_fc3
+            self.W_lstm, self.b_lstm, self.W_fc2, self.b_fc2, self.W_fc3,
+            self.b_fc3
         ]
