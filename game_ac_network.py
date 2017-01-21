@@ -2,6 +2,7 @@
 import tensorflow as tf
 import numpy as np
 
+
 # weight initialization based on muupan's code
 # https://github.com/muupan/async-rl/blob/master/a3c_ale.py
 def _fc_variable(weight_shape):
@@ -9,13 +10,10 @@ def _fc_variable(weight_shape):
     output_channels = weight_shape[1]
     d = 1.0 / np.sqrt(input_channels)
     bias_shape = [output_channels]
-    weight = tf.Variable(
-        tf.random_uniform(
-            weight_shape, minval=-d, maxval=d
-        )
-    )
+    weight = tf.Variable(tf.random_uniform(weight_shape, minval=-d, maxval=d))
     bias = tf.Variable(tf.random_uniform(bias_shape, minval=-d, maxval=d))
     return weight, bias
+
 
 # Actor-Critic Network Base Class
 # (Policy network and Value network)
@@ -120,9 +118,11 @@ class ConvPerception(object):
             x, W, strides=[1, stride, stride, 1], padding="VALID"
         )
 
-
     def get_vars(self):
-        return [self.W_conv1, self.b_conv1, self.W_conv2, self.b_conv2, self.W_fc1, self.b_fc1]
+        return [
+            self.W_conv1, self.b_conv1, self.W_conv2, self.b_conv2, self.W_fc1,
+            self.b_fc1
+        ]
 
     def __call__(self, state):
         h_conv1 = tf.nn.relu(
@@ -137,7 +137,6 @@ class ConvPerception(object):
         # potentially move this flattening into vector space somewhere else.
         # Could any LSTM operate meaningfully on the spatial axis?
         h_conv2_flat = tf.reshape(h_conv2, [-1, 2592])
-        print('shape', tf.shape(h_conv2_flat))
         h_fc1 = tf.nn.relu(tf.matmul(h_conv2_flat, self.W_fc1) + self.b_fc1)
 
         return h_fc1
