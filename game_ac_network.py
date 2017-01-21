@@ -96,6 +96,9 @@ class ConvPerception(object):
         # stride=2
         self.W_conv2, self.b_conv2 = self._conv_variable([4, 4, 16, 32])
 
+        # fully connected layer variables
+        self.W_fc1, self.b_fc1 = _fc_variable([2592, 256])
+
     def _conv_variable(self, weight_shape):
         # create convolution variable weights
         # could most likely get rid of this if switching to keras
@@ -132,8 +135,6 @@ class ConvPerception(object):
             self._conv2d(h_conv1, self.W_conv2, 2) + self.b_conv2
         )
 
-        self.W_fc1, self.b_fc1 = _fc_variable([2592, 256])
-
         # potentially move this flattening into vector space somewhere else.
         # Could any LSTM operate meaningfully on the spatial axis?
         h_conv2_flat = tf.reshape(h_conv2, [-1, 2592])
@@ -154,26 +155,24 @@ class GameACFFNetwork(GameACNetwork):
 
         scope_name = "net_" + str(self._thread_index)
         with tf.device(self._device), tf.variable_scope(scope_name) as scope:
-            # weight for policy output layer
-            self.W_fc2, self.b_fc2 = _fc_variable([256, action_size])
-
-            # weight for value output layer
-            self.W_fc3, self.b_fc3 = _fc_variable([256, 1])
-
-            # ### placeholders: state (input)
+            # input
 
             # first dimension is LSTM_T x H x W x PAST_N_STATES
             self.s = tf.placeholder("float", [None, 84, 84, 4])
 
-            # ### functions
+            # perception model
 
             self.perception = ConvPerception()
             h_fc1 = self.perception(self.s)
 
-            # output layers:
-            # policy (output)
+            # output
+
+            # policy
+            self.W_fc2, self.b_fc2 = _fc_variable([256, action_size])
             self.pi = tf.nn.softmax(tf.matmul(h_fc1, self.W_fc2) + self.b_fc2)
-            # value (output)
+
+            # value
+            self.W_fc3, self.b_fc3 = _fc_variable([256, 1])
             v_ = tf.matmul(h_fc1, self.W_fc3) + self.b_fc3
             self.v = tf.reshape(v_, [-1])
 
@@ -207,10 +206,6 @@ class GameACLSTMNetwork(GameACNetwork):
 
         scope_name = "net_" + str(self._thread_index)
         with tf.device(self._device), tf.variable_scope(scope_name) as scope:
-            #### weights
-
-            self.W_fc1, self.b_fc1 = _fc_variable([2592, 256])
-
             # lstm
             self.lstm = tf.nn.rnn_cell.BasicLSTMCell(256, state_is_tuple=True)
 
@@ -330,6 +325,6 @@ class GameACLSTMNetwork(GameACNetwork):
 
     def get_vars(self):
         return self.perception.get_vars() + [
-            self.b_fc1, self.W_lstm, self.b_lstm, self.W_fc2, self.b_fc2,
+            self.W_lstm, self.b_lstm, self.W_fc2, self.b_fc2,
             self.W_fc3, self.b_fc3
         ]
