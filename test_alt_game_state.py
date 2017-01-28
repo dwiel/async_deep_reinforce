@@ -9,7 +9,7 @@ def test_tiny():
     x_t = np.array([2]).reshape((1, 1))
     gs._copy_window(x_t)
 
-    assert x_t[0, 0] == 1
+    assert x_t[0, 0] == GameState.VISITED
 
 
 def test_incorrect_view_shape():
@@ -45,7 +45,9 @@ def test_tiny_view():
             image[gs.board_position_x, gs.board_position_y] = x_t[0, 0]
 
     target = np.zeros((BOARD_WIDTH, BOARD_HEIGHT), dtype=np.float32)
-    target[BOARD_WIDTH / 2, BOARD_WIDTH / 2] = 1
+    target[:] = GameState.NOT_VISITED
+
+    target[BOARD_WIDTH / 2, BOARD_WIDTH / 2] = GameState.VISITED
     np.testing.assert_allclose(image, target)
 
 
@@ -62,21 +64,17 @@ def test_wider_view():
 
     assert gs.board_position_x == 1
     assert gs.board_position_y == 1
-    np.testing.assert_allclose(gs.height, [
-        [0, 0, 0],
-        [0, 1, 0],
-        [0, 0, 0],
-    ])
+
+    target = np.zeros((3, 3), dtype=np.float32)
+    target[:] = GameState.NOT_VISITED
+    target[1, 1] = GameState.VISITED
+    np.testing.assert_allclose(gs.height, target)
 
     x_t = np.random.random((VIEW_HEIGHT, VIEW_WIDTH))
 
     gs._copy_window(x_t)
-    np.testing.assert_allclose(
-        x_t, [
-            [-1, -1, -1, -1, -1],
-            [-1, 0, 0, 0, -1],
-            [-1, 0, 1, 0, -1],
-            [-1, 0, 0, 0, -1],
-            [-1, -1, -1, -1, -1],
-        ]
-    )
+    target = np.zeros((5, 5), dtype=np.float32)
+    target[:] = GameState.OUT_OF_BOUNDS
+    target[1:-1, 1:-1] = GameState.NOT_VISITED
+    target[2, 2] = GameState.VISITED
+    np.testing.assert_allclose(x_t, target)
