@@ -1,7 +1,0 @@
-#!/bin/bash
-
-if [ -z "$@" ]; then
-    docker run -t async_deep_reinforce_test .
-else
-    docker run -t async_deep_reinforce_test "$@"
-fi
