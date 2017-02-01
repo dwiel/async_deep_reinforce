@@ -155,8 +155,8 @@ class GameACFFNetwork(GameACNetwork):
             self.s = tf.placeholder("float", [None, 84, 84, 4])
 
             # perception model
-            self.perception = ConvPerception(output_vector_size=256)
-            h_fc1 = self.perception(self.s)
+            perception = ConvPerception(output_vector_size=256)
+            h_fc1 = perception(self.s)
 
             # policy
             self.W_fc2, self.b_fc2 = _fc_variable([256, action_size])
@@ -167,7 +167,7 @@ class GameACFFNetwork(GameACNetwork):
             v_ = tf.matmul(h_fc1, self.W_fc3) + self.b_fc3
             self.v = tf.reshape(v_, [-1])
 
-        self.trainable_weights = self.perception.trainable_weights + [
+        self.trainable_weights = perception.trainable_weights + [
             self.W_fc2, self.b_fc2, self.W_fc3, self.b_fc3
         ]
 
@@ -202,9 +202,9 @@ class GameACLSTMNetwork(GameACNetwork):
             # state (input)
             self.s = tf.placeholder("float", [None, 84, 84, 4])
 
-            self.perception = ConvPerception(output_vector_size=256)
+            perception = ConvPerception(output_vector_size=256)
             # h_fc1.shape == (5,256)
-            h_fc1 = self.perception(self.s)
+            h_fc1 = perception(self.s)
 
             # h_fc_reshaped.shape == (1,5,256)
             h_fc1_reshaped = tf.reshape(h_fc1, [1, -1, 256])
@@ -253,7 +253,7 @@ class GameACLSTMNetwork(GameACNetwork):
 
             self.reset_state()
 
-        self.trainable_weights = self.perception.trainable_weights + [
+        self.trainable_weights = perception.trainable_weights + [
             self.W_lstm, self.b_lstm, self.W_fc2, self.b_fc2, self.W_fc3,
             self.b_fc3
         ]
