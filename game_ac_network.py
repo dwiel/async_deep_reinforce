@@ -156,15 +156,15 @@ class GameACFFNetwork(GameACNetwork):
 
             # perception model
             perception = ConvPerception(output_vector_size=256)
-            h_fc1 = perception(self.s)
+            perception_out = perception(self.s)
 
             # policy
             self.W_fc2, self.b_fc2 = _fc_variable([256, action_size])
-            self.pi = tf.nn.softmax(tf.matmul(h_fc1, self.W_fc2) + self.b_fc2)
+            self.pi = tf.nn.softmax(tf.matmul(perception_out, self.W_fc2) + self.b_fc2)
 
             # value
             self.W_fc3, self.b_fc3 = _fc_variable([256, 1])
-            v_ = tf.matmul(h_fc1, self.W_fc3) + self.b_fc3
+            v_ = tf.matmul(perception_out, self.W_fc3) + self.b_fc3
             self.v = tf.reshape(v_, [-1])
 
         self.trainable_weights = perception.trainable_weights + [
@@ -204,10 +204,10 @@ class GameACLSTMNetwork(GameACNetwork):
 
             perception = ConvPerception(output_vector_size=256)
             # h_fc1.shape == (5,256)
-            h_fc1 = perception(self.s)
+            perception_out = perception(self.s)
 
             # h_fc_reshaped.shape == (1,5,256)
-            h_fc1_reshaped = tf.reshape(h_fc1, [1, -1, 256])
+            h_fc1_reshaped = tf.reshape(perception_out, [1, -1, 256])
 
             # place holder for LSTM unrolling time step size.
             self.step_size = tf.placeholder(tf.float32, [1])
