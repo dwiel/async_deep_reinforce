@@ -12,7 +12,7 @@ from constants import LOCAL_T_MAX
 from constants import ENTROPY_BETA
 from constants import USE_LSTM
 
-LOG_INTERVAL = 10000
+LOG_INTERVAL = 1000
 PERFORMANCE_LOG_INTERVAL = 1000
 
 

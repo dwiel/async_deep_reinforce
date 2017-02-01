@@ -203,7 +203,7 @@ class GameACLSTMNetwork(GameACNetwork):
             self.s = tf.placeholder("float", [None, 84, 84, 4])
 
             perception = ConvPerception(output_vector_size=256)
-            # h_fc1.shape == (5,256)
+            # perception_out.shape == (5,256)
             perception_out = perception(self.s)
 
             # h_fc_reshaped.shape == (1,5,256)
