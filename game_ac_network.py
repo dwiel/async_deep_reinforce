@@ -151,17 +151,12 @@ class GameACFFNetwork(GameACNetwork):
 
         scope_name = "net_" + str(self._thread_index)
         with tf.device(self._device), tf.variable_scope(scope_name) as scope:
-            # input
-
             # first dimension is LSTM_T x H x W x PAST_N_STATES
             self.s = tf.placeholder("float", [None, 84, 84, 4])
 
             # perception model
-
             self.perception = ConvPerception(output_vector_size=256)
             h_fc1 = self.perception(self.s)
-
-            # output
 
             # policy
             self.W_fc2, self.b_fc2 = _fc_variable([256, action_size])
