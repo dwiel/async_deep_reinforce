@@ -40,14 +40,14 @@ class A3CTrainingThread(object):
         with tf.device(device):
             self.gradients = tf.gradients(
                 self.local_network.total_loss,
-                self.local_network.get_vars(),
+                self.local_network.trainable_weights,
                 gate_gradients=False,
                 aggregation_method=None,
                 colocate_gradients_with_ops=False
             )
 
         self.apply_gradients = grad_applier.apply_gradients(
-            global_network.get_vars(), self.gradients
+            global_network.trainable_weights, self.gradients
         )
 
         self.sync = self.local_network.sync_from(global_network)

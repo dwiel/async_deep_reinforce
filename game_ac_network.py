@@ -68,12 +68,9 @@ class GameACNetwork(object):
     def run_value(self, sess, s_t):
         raise NotImplementedError()
 
-    def get_vars(self):
-        raise NotImplementedError()
-
     def sync_from(self, src_netowrk, name=None):
-        src_vars = src_netowrk.get_vars()
-        dst_vars = self.get_vars()
+        src_vars = src_netowrk.trainable_weights
+        dst_vars = self.trainable_weights
 
         sync_ops = []
 
@@ -99,6 +96,11 @@ class ConvPerception(object):
         # fully connected layer variables
         self.W_fc1, self.b_fc1 = _fc_variable([2592, output_vector_size])
 
+        self.trainable_weights = [
+            self.W_conv1, self.b_conv1, self.W_conv2, self.b_conv2, self.W_fc1,
+            self.b_fc1
+        ]
+
     def _conv_variable(self, weight_shape):
         # create convolution variable weights
         # could most likely get rid of this if switching to keras
@@ -120,12 +122,6 @@ class ConvPerception(object):
         return tf.nn.conv2d(
             x, W, strides=[1, stride, stride, 1], padding="VALID"
         )
-
-    def get_vars(self):
-        return [
-            self.W_conv1, self.b_conv1, self.W_conv2, self.b_conv2, self.W_fc1,
-            self.b_fc1
-        ]
 
     def __call__(self, state):
         h_conv1 = tf.nn.relu(
@@ -176,6 +172,10 @@ class GameACFFNetwork(GameACNetwork):
             v_ = tf.matmul(h_fc1, self.W_fc3) + self.b_fc3
             self.v = tf.reshape(v_, [-1])
 
+        self.trainable_weights = self.perception.trainable_weights + [
+            self.W_fc2, self.b_fc2, self.W_fc3, self.b_fc3
+        ]
+
     def run_policy_and_value(self, sess, s_t):
         pi_out, v_out = sess.run([self.pi, self.v], feed_dict={self.s: [s_t]})
         return (pi_out[0], v_out[0])
@@ -187,11 +187,6 @@ class GameACFFNetwork(GameACNetwork):
     def run_value(self, sess, s_t):
         v_out = sess.run(self.v, feed_dict={self.s: [s_t]})
         return v_out[0]
-
-    def get_vars(self):
-        return self.perception.get_vars() + [
-            self.W_fc2, self.b_fc2, self.W_fc3, self.b_fc3
-        ]
 
 
 # Actor-Critic LSTM Network
@@ -263,6 +258,11 @@ class GameACLSTMNetwork(GameACNetwork):
 
             self.reset_state()
 
+        self.trainable_weights = self.perception.trainable_weights + [
+            self.W_lstm, self.b_lstm, self.W_fc2, self.b_fc2, self.W_fc3,
+            self.b_fc3
+        ]
+
     def reset_state(self):
         self.lstm_state_out = tf.nn.rnn_cell.LSTMStateTuple(
             np.zeros([1, 256]), np.zeros([1, 256])
@@ -316,9 +316,3 @@ class GameACLSTMNetwork(GameACNetwork):
         # roll back lstm state
         self.lstm_state_out = prev_lstm_state_out
         return v_out[0]
-
-    def get_vars(self):
-        return self.perception.get_vars() + [
-            self.W_lstm, self.b_lstm, self.W_fc2, self.b_fc2, self.W_fc3,
-            self.b_fc3
-        ]
