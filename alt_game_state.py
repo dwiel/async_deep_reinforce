@@ -2,9 +2,6 @@
 from __future__ import print_function
 import numpy as np
 
-# TODO
-from constants import ACTION_SIZE
-
 
 def limit(x, low, high):
     if x < low:
@@ -34,9 +31,11 @@ class UnexpectedCopyWindowInputShape(ValueError):
 
 
 class GameState(object):
+    environment_shape = [84, 84]
     VISITED = 0
     OUT_OF_BOUNDS = -1
     NOT_VISITED = 1
+    ACTION_SIZE = 4
 
     def __init__(
             self,

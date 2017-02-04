@@ -15,6 +15,9 @@ RUN pip install pip --upgrade
 RUN pip install .
 WORKDIR /root
 
+# for tinyik virtual arm environment
+RUN apt-get install -y libblas-dev liblapack-dev libatlas-base-dev gfortran
+
 # personal
 RUN apt-get install -y vim
 

@@ -3,8 +3,6 @@ import tensorflow as tf
 import numpy as np
 import time
 
-from alt_game_state import GameState
-from alt_game_state import ACTION_SIZE
 from game_ac_network import GameACFFNetwork, GameACLSTMNetwork
 
 from constants import GAMMA
@@ -12,28 +10,31 @@ from constants import LOCAL_T_MAX
 from constants import ENTROPY_BETA
 from constants import USE_LSTM
 
-LOG_INTERVAL = 1000
-PERFORMANCE_LOG_INTERVAL = 1000
+LOG_INTERVAL = 100
+PERFORMANCE_LOG_INTERVAL = 100
 
 
 class A3CTrainingThread(object):
     def __init__(
-            self, thread_index, global_network, initial_learning_rate,
-            learning_rate_input, grad_applier, max_global_time_step, device
+            self,
+            thread_index,
+            global_network,
+            initial_learning_rate,
+            learning_rate_input,
+            grad_applier,
+            max_global_time_step,
+            device,
+            game_state_class,
+            network,
     ):
 
         self.thread_index = thread_index
         self.learning_rate_input = learning_rate_input
         self.max_global_time_step = max_global_time_step
 
-        if USE_LSTM:
-            self.local_network = GameACLSTMNetwork(
-                ACTION_SIZE, thread_index, device
-            )
-        else:
-            self.local_network = GameACFFNetwork(
-                ACTION_SIZE, thread_index, device
-            )
+        self.local_network = network(
+            game_state_class.ACTION_SIZE, thread_index, game_state_class.environment_shape, device
+        )
 
         self.local_network.prepare_loss(ENTROPY_BETA)
 
@@ -52,7 +53,7 @@ class A3CTrainingThread(object):
 
         self.sync = self.local_network.sync_from(global_network)
 
-        self.game_state = GameState(113 * thread_index)
+        self.game_state = game_state_class(113 * thread_index)
 
         self.local_t = 0
 
@@ -112,8 +113,8 @@ class A3CTrainingThread(object):
             values.append(value_)
 
             if (self.thread_index == 0) and (self.local_t % LOG_INTERVAL == 0):
-                print("pi={}".format(pi_))
-                print(" V={}".format(value_))
+                print("pi    = {}".format(pi_))
+                print("value = {}".format(value_))
 
             # process game
             self.game_state.process(action)
@@ -165,7 +166,7 @@ class A3CTrainingThread(object):
         for (ai, ri, si, Vi) in zip(actions, rewards, states, values):
             R = ri + GAMMA * R
             td = R - Vi
-            a = np.zeros([ACTION_SIZE])
+            a = np.zeros([self.game_state.ACTION_SIZE])
             a[ai] = 1
 
             batch_si.append(si)

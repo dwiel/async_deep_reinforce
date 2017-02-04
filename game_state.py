@@ -5,7 +5,6 @@ import cv2
 from ale_python_interface import ALEInterface
 
 from constants import ROM
-from constants import ACTION_SIZE
 
 
 class GameState(object):

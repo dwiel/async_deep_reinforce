@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 import tensorflow as tf
 import numpy as np
+from keras.models import Sequential
+from keras.layers.core import Dense, Reshape
 
 
 # weight initialization based on muupan's code
@@ -75,7 +77,7 @@ class GameACNetwork(object):
         sync_ops = []
 
         with tf.device(self._device):
-            with tf.op_scope([], name, "GameACNetwork") as name:
+            with tf.name_scope(name, "GameACNetwork", []) as name:
                 for (src_var, dst_var) in zip(src_vars, dst_vars):
                     sync_op = tf.assign(dst_var, src_var)
                     sync_ops.append(sync_op)
@@ -155,15 +157,19 @@ class GameACFFNetwork(GameACNetwork):
             self.s = tf.placeholder("float", [None, 84, 84, 4])
 
             # perception model
-            perception = ConvPerception(output_vector_size=256)
+            perception = ConvPerception(output_vector_size=self.hidden_size)
             perception_out = perception(self.s)
 
             # policy
-            self.W_fc2, self.b_fc2 = _fc_variable([256, action_size])
-            self.pi = tf.nn.softmax(tf.matmul(perception_out, self.W_fc2) + self.b_fc2)
+            self.W_fc2, self.b_fc2 = _fc_variable([
+                self.hidden_size, action_size
+            ])
+            self.pi = tf.nn.softmax(
+                tf.matmul(perception_out, self.W_fc2) + self.b_fc2
+            )
 
             # value
-            self.W_fc3, self.b_fc3 = _fc_variable([256, 1])
+            self.W_fc3, self.b_fc3 = _fc_variable([self.hidden_size, 1])
             v_ = tf.matmul(perception_out, self.W_fc3) + self.b_fc3
             self.v = tf.reshape(v_, [-1])
 
@@ -186,34 +192,64 @@ class GameACFFNetwork(GameACNetwork):
 
 # Actor-Critic LSTM Network
 class GameACLSTMNetwork(GameACNetwork):
+    def _perception(self):
+        raise NotImplemented()
+
     def __init__(
             self,
             action_size,
             thread_index,  # -1 for global
-            device="/cpu:0"
+            environment_shape,
+            device="/cpu:0",
+            hidden_size=16,
     ):
+        self.hidden_size = hidden_size
         GameACNetwork.__init__(self, action_size, thread_index, device)
 
         scope_name = "net_" + str(self._thread_index)
         with tf.device(self._device), tf.variable_scope(scope_name) as scope:
             # lstm
-            self.lstm = tf.nn.rnn_cell.BasicLSTMCell(256, state_is_tuple=True)
+            self.lstm = tf.nn.rnn_cell.BasicLSTMCell(
+                self.hidden_size, state_is_tuple=True
+            )
 
-            # state (input)
-            self.s = tf.placeholder("float", [None, 84, 84, 4])
+            # # state (input) N, H, W, T
+            self.s = tf.placeholder("float", [None] + environment_shape + [4])
 
-            perception = ConvPerception(output_vector_size=256)
-            # perception_out.shape == (5,256)
+            # perception = ConvPerception(output_vector_size=self.hidden_size)
+            # # perception_out.shape == (5,self.hidden_size)
+            # perception_out = perception(self.s)
+            perception = self._perception()
             perception_out = perception(self.s)
 
-            # h_fc_reshaped.shape == (1,5,256)
-            h_fc1_reshaped = tf.reshape(perception_out, [1, -1, 256])
+            # perception = Dense(self.hidden_size)
+            # flattened_s = tf.reshape(self.s, [-1, 84 * 84 * 4])
+            # perception_out = perception(flattened_s)
+
+            # # state (input) N, X, T
+            # self.s = tf.placeholder("float", [None, 1, 4])
+
+            # perception = Dense(self.hidden_size)
+            # flattened_s = tf.reshape(self.s, [-1, 4])
+            # perception_out = perception(flattened_s)
+
+            # h_fc_reshaped.shape == (1,5,self.hidden_size)
+            h_fc1_reshaped = tf.reshape(
+                perception_out,
+                [1, -1, self.hidden_size]
+            )
 
             # place holder for LSTM unrolling time step size.
             self.step_size = tf.placeholder(tf.float32, [1])
 
-            self.initial_lstm_state0 = tf.placeholder(tf.float32, [1, 256])
-            self.initial_lstm_state1 = tf.placeholder(tf.float32, [1, 256])
+            self.initial_lstm_state0 = tf.placeholder(
+                tf.float32,
+                [1, self.hidden_size]
+            )
+            self.initial_lstm_state1 = tf.placeholder(
+                tf.float32,
+                [1, self.hidden_size]
+            )
             self.initial_lstm_state = tf.nn.rnn_cell.LSTMStateTuple(
                 self.initial_lstm_state0, self.initial_lstm_state1
             )
@@ -232,18 +268,21 @@ class GameACLSTMNetwork(GameACNetwork):
                 scope=scope
             )
 
-            # lstm_outputs: (1,5,256) for back prop, (1,1,256) for forward prop.
+            # lstm_outputs: (1,5,self.hidden_size) for back prop,
+            # (1,1,self.hidden_size) for forward prop.
 
-            lstm_outputs = tf.reshape(lstm_outputs, [-1, 256])
+            lstm_outputs = tf.reshape(lstm_outputs, [-1, self.hidden_size])
 
             # policy (output)
-            self.W_fc2, self.b_fc2 = _fc_variable([256, action_size])
+            self.W_fc2, self.b_fc2 = _fc_variable([
+                self.hidden_size, action_size
+            ])
             self.pi = tf.nn.softmax(
                 tf.matmul(lstm_outputs, self.W_fc2) + self.b_fc2
             )
 
             # value (output)
-            self.W_fc3, self.b_fc3 = _fc_variable([256, 1])
+            self.W_fc3, self.b_fc3 = _fc_variable([self.hidden_size, 1])
             v_ = tf.matmul(lstm_outputs, self.W_fc3) + self.b_fc3
             self.v = tf.reshape(v_, [-1])
 
@@ -260,7 +299,7 @@ class GameACLSTMNetwork(GameACNetwork):
 
     def reset_state(self):
         self.lstm_state_out = tf.nn.rnn_cell.LSTMStateTuple(
-            np.zeros([1, 256]), np.zeros([1, 256])
+            np.zeros([1, self.hidden_size]), np.zeros([1, self.hidden_size])
         )
 
     def run_policy_and_value(self, sess, s_t):
@@ -311,3 +350,21 @@ class GameACLSTMNetwork(GameACNetwork):
         # roll back lstm state
         self.lstm_state_out = prev_lstm_state_out
         return v_out[0]
+
+
+class ConvGameACLSTMNetwork(GameACLSTMNetwork):
+    def _perception(self):
+        return ConvPerception(output_vector_size=self.hidden_size)
+
+
+class DenseGameACLSTMNetwork(GameACLSTMNetwork):
+    def _perception(self):
+        dense = Dense(self.hidden_size, activation='relu')
+
+        # TODO: this ret closure is super hacky
+        def ret(state):
+            flattened_s = tf.reshape(state, [-1, 4])
+            return dense(flattened_s)
+
+        ret.trainable_weights = dense.trainable_weights
+        return ret
