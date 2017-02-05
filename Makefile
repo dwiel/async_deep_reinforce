@@ -4,7 +4,8 @@ build:
 	@docker build -f=Dockerfile -t=async_deep_reinforce .
 
 run: build
-	@docker run --rm -it async_deep_reinforce
+	$(eval LOG := $(shell pwd)/log/$(shell date +'%Y%m%d_%H%M%S')_$(shell docker images async_deep_reinforce -q))
+	docker run --rm -v ${LOG}:/volume -it async_deep_reinforce
 
 shell: build
 	@docker run --rm -it async_deep_reinforce /bin/bash
