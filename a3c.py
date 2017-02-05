@@ -91,7 +91,7 @@ def main(GameState, Network):
     sess.run(init)
 
     # summary for tensorboard
-    score_input = tf.placeholder(tf.int32)
+    score_input = tf.placeholder(tf.float32)
     tf.scalar_summary("score", score_input)
 
     summary_op = tf.merge_all_summaries()
